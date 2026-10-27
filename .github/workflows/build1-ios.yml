@@ -1,0 +1,45 @@
+
+name: Build PIXEL PFS iOS
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install CMake
+        run: brew install cmake
+
+      - name: Configure iOS build
+        run: |
+          cmake -S . -B build-ios -G Xcode \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_SYSROOT=iphoneos \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build-ios --config Release
+
+      - name: Package build output
+        run: |
+          mkdir -p output/Payload
+          APP=$(find build-ios -type d -name '*.app' | head -n 1)
+          test -n "$APP"
+          cp -R "$APP" output/Payload/
+          cd output
+          zip -r ../PIXEL-PFS-unsigned.ipa Payload
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PIXEL-PFS-iOS-unsigned
+          path: PIXEL-PFS-unsigned.ipa
